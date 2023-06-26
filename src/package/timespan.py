@@ -1,25 +1,22 @@
 import datetime
-import re
-import sys
 import locale
+import os
+import re
 from functools import partial
 
 __author__ = "Mattan Serry"
 __email__ = "maserry@microsoft.com"
-
-min_py_support = (3, 10)  # the code is using match-case introduced in Python 3.10
-assert sys.version_info >= min_py_support,\
-    f"Interpreter {sys.executable} version {sys.version_info}<{min_py_support} is not supported"
+__version__ = "0.1.0"
 
 """
 
-A Python module for conversion between .NET TimeSpan objects and Python's datetime.timedelta objects.
+Module to convert between .NET 7.0 TimeSpan objects (with format specifiers) and Python's datetime.timedelta objects.
 
 References:
-https://docs.microsoft.com/en-us/dotnet/api/system.timespan?view=net-6.0
-https://docs.microsoft.com/en-us/dotnet/api/system.timespan.-ctor?view=net-6.0
-https://docs.microsoft.com/en-us/dotnet/api/system.timespan.tickspersecond?view=net-6.0
-https://docs.microsoft.com/en-us/dotnet/standard/base-types/standard-timespan-format-strings?view=new-6.10
+https://learn.microsoft.com/en-us/dotnet/api/system.timespan?view=net-7.0
+https://learn.microsoft.com/en-us/dotnet/api/system.timespan.-ctor?view=net-7.0
+https://learn.microsoft.com/en-us/dotnet/api/system.timespan.tickspersecond?view=net-7.0
+https://learn.microsoft.com/en-us/dotnet/standard/base-types/standard-timespan-format-strings?view=new-6.10
 
 
 The Constant ("c") Format Specifier:
@@ -76,10 +73,10 @@ Microsecond-level precision is guaranteed.
 
 """
 
-_TICKS_PER_SECOND = 10000000
+_TICKS_PER_SECOND = 1e7
 _PATTERN = re.compile(
     r'^'
-    r'(?P<sign>[-]?)'
+    r'(?P<sign>-?)'
     r'(?P<days>\d+[:.])?'
     r'(?P<hours>\d{1,2}):'
     r'(?P<minutes>\d{2}):'
@@ -87,9 +84,9 @@ _PATTERN = re.compile(
     r'(?P<fraction>[.,]\d{1,7})?'
     r'$'
 )
-FORMAT_SPECIFIERS = ('c', 'g', 'G')
+_FORMAT_SPECIFIERS = ('c', 'g', 'G')
 # Different locales use different decimal point characters. For example, en-US locale uses '.' and fr-FR locale uses ','
-NUMBER_DECIMAL_SEPARATOR = locale.localeconv()["decimal_point"]
+_NUMBER_DECIMAL_SEPARATOR = os.environ.get("TIMESPAN_LOCALE", locale.localeconv()["decimal_point"])
 
 
 def _args_to_seconds(args, *, by_ticks=False) -> float:
@@ -114,34 +111,32 @@ def _args_to_seconds(args, *, by_ticks=False) -> float:
 
     days, hours, minutes, seconds, milliseconds = 0, 0, 0, 0, 0
 
-    match len(args):
+    if len(args) == 1:
+        arg, = args
+        if by_ticks:
+            arg = arg / _TICKS_PER_SECOND
+        seconds = arg
 
-        case 1:
-            arg, = args
-            if by_ticks:
-                arg = arg / _TICKS_PER_SECOND
-            seconds = arg
+    elif len(args) == 3:
+        # Initializes a new instance to a specified number of hours, minutes, and seconds.
+        hours, minutes, seconds = args
 
-        case 3:
-            # Initializes a new instance to a specified number of hours, minutes, and seconds.
-            hours, minutes, seconds = args
+    elif len(args) == 4:
+        # Initializes a new instance to a specified number of days, hours, minutes, and seconds.
+        days, hours, minutes, seconds = args
 
-        case 4:
-            # Initializes a new instance to a specified number of days, hours, minutes, and seconds.
-            days, hours, minutes, seconds = args
-
-        case 5:
-            # Initializes a new instance to a specified number of days, hours, minutes, seconds, and milliseconds.
-            days, hours, minutes, seconds, milliseconds = args
-        case _:
-            raise ValueError(f"Cannot initialize a TimeSpan instance with {len(args)} arguments")
+    elif len(args) == 5:
+        # Initializes a new instance to a specified number of days, hours, minutes, seconds, and milliseconds.
+        days, hours, minutes, seconds, milliseconds = args
+    else:
+        raise ValueError(f"Cannot initialize a TimeSpan instance with {len(args)} arguments")
 
     return datetime.timedelta(
         days=days,
         hours=hours,
         minutes=minutes,
         seconds=seconds,
-        milliseconds=milliseconds
+        milliseconds=milliseconds,
     ).total_seconds()
 
 
@@ -154,7 +149,7 @@ def to_string(specifier: str, *args: tuple) -> str:
     @return: TimeSpan string.
     See examples at module-level docs.
     """
-    assert specifier in FORMAT_SPECIFIERS, f"Supported format specifiers are {FORMAT_SPECIFIERS}"
+    assert specifier in _FORMAT_SPECIFIERS
 
     # convert the date\time information tuple to total seconds as float
     seconds: float = _args_to_seconds(args)
@@ -173,7 +168,7 @@ def to_string(specifier: str, *args: tuple) -> str:
 
     # apply format-specific style for fraction
     if f > 0 or specifier == 'G':
-        f = ('.' if specifier == 'c' else NUMBER_DECIMAL_SEPARATOR) + str(f).rjust(7, '0')
+        f = ('.' if specifier == 'c' else _NUMBER_DECIMAL_SEPARATOR) + str(f).rjust(7, '0')
         if specifier == 'g':
             f = f.rstrip('0')
     else:
@@ -193,7 +188,7 @@ def to_string(specifier: str, *args: tuple) -> str:
 def from_string(timespan_string: str) -> datetime.timedelta:
     """
     Converts a TimeSpan string in the current locale to a datetime.timedelta object.
-    Analogous to TimeSpan.Parse - https://docs.microsoft.com/en-us/dotnet/api/system.timespan.parse?view=net-6.0
+    Analogous to TimeSpan.Parse - https://learn.microsoft.com/en-us/dotnet/api/system.timespan.parse?view=net-7.0
     @param timespan_string: TimeSpan string of any format and locale.
     @return: A timedelta object.
     See examples at module-level docs.
@@ -208,6 +203,21 @@ def from_string(timespan_string: str) -> datetime.timedelta:
     fraction = sign * float(groups['fraction'] or 0.0)
     delta = datetime.timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds + fraction)
     return delta
+
+
+def total_seconds(timespan_string: str) -> float:
+    """
+    Converts a TimeSpan string in the current locale to a datetime.timedelta object.
+    Analogous to TimeSpan.Parse with TimeSpan.TotalSeconds.
+    See more:
+    https://learn.microsoft.com/en-us/dotnet/api/system.timespan.parse?view=net-7.0
+    https://learn.microsoft.com/en-us/dotnet/api/system.timespan.totalseconds?view=net-7.0
+    @param timespan_string: TimeSpan string of any format and locale.
+    @return: Total seconds as float.
+    """
+    delta = from_string(timespan_string)
+    seconds = delta.total_seconds()
+    return seconds
 
 
 constant = partial(to_string, 'c')
