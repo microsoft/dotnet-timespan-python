@@ -1,14 +1,10 @@
-# Project
+# .Net TimeSpan for Python
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+A Python module for conversion between .NET TimeSpan objects and Python's datetime.timedelta objects.
 
-As the maintainer of this project, please make a few updates:
-
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+## Versions
+### 0.1.0
+First public version. Includes new features like parsing from a string, and converting to strings of format 'c', 'g', and 'G'.
 
 ## Contributing
 
