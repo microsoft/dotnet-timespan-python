@@ -1,6 +1,6 @@
 # .Net TimeSpan for Python
 
-A Python module for conversion between .NET TimeSpan objects and Python's datetime.timedelta objects.
+A Python module for conversion between .NET TimeSpan objects and Python datetime.timedelta objects.
 
 ## Versions
 ### 0.1.0
