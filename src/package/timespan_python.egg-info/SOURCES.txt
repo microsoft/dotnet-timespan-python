@@ -1,5 +1,0 @@
-setup.py
-timespan_python.egg-info/PKG-INFO
-timespan_python.egg-info/SOURCES.txt
-timespan_python.egg-info/dependency_links.txt
-timespan_python.egg-info/top_level.txt
