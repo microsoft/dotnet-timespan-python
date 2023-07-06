@@ -1,11 +1,12 @@
 import doctest
 import math
 import tqdm
-import src.package.timespan as timespan
+import timespan
 
 MAX_TEST_VAL = 1000000  # maximal value to test. its additive inverse number is the minimal value to test
 TEST_STEP = 0.987654321  # difference between consecutive test values. should be a number slightly less than 1.0
 TEST_PRECISION = 1e-6  # sufferable absolute difference of the required result when converting
+
 
 def _test(start, stop, step):
     """

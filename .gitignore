@@ -1,2 +1,2 @@
-/dist/**
-/timespan_python.egg-info/**
+**/dist/**
+**/*.egg-info/**
